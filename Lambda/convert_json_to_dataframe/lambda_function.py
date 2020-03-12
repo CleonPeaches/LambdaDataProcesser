@@ -1,21 +1,27 @@
+__name__ = 'lambda_function'
+
 import json
 import boto3
 import awswrangler as wr
 import pandas
-import re
+import os
+from time import gmtime, strftime, sleep
 
+destination_bucket_string = os.environ['destination_bucket']
 s3_resource = boto3.resource('s3')
 s3_client = boto3.client('s3')
+glue_client = boto3.client('glue')
+ssm_client = boto3.client('ssm')
 
 def get_resources(event):
-    destination_bucket = 'ccod-data-lake'
     source_key = str(event['Records'][0]['s3']['object']['key'])
+    print(source_key)
+    source_name = source_key.split('/')[-3]
     return {
         'source_bucket_string': str(event['Records'][0]['s3']['bucket']['name']),
         'source_key': source_key,
-        'destination_bucket_string': destination_bucket,
-        'destination_bucket': s3_resource.Bucket(destination_bucket),
-        'source_name': source_key.split('/')[-3],
+        'destination_bucket': s3_resource.Bucket(destination_bucket_string),
+        'source_name': source_name,
         'source_object_name': source_key.split('/')[-2],
         'column_partition': ['created_date'],
         'prefix': source_key.split('/')[-3] + '/' + source_key.split('/')[-2] + '/'
@@ -24,87 +30,85 @@ def get_resources(event):
 def try_get_resources(event):
     try:
         resources = get_resources(event)
-    except Exception as e:
-        raise e
-    return resources
-
-def get_tags(object_name):
-    tag_set = []
-    object_name = object_name.lower()
-    if object_name == 'cases':
-        tag_set.append(
-            {'Key': 'Classification', 'Value': 'Private'},
-            {'Key': 'Source', 'Value': 'Salesforce'}
-        )
-    elif object_name == 'business_process':
-        tag_set.append(
-            {'Key': 'Classification', 'Value': 'Public'},
-            {'Key': 'Source', 'Value': 'Salesforce'}
-        )
-    elif object_name == 'case_status':
-        tag_set.append(
-            {'Key': 'Classification', 'Value': 'Public'},
-            {'Key': 'Source', 'Value': 'Salesforce'}
-        )
-    elif object_name == 'community':
-        tag_set.append(
-            {'Key': 'Classification', 'Value': 'Public'},
-            {'Key': 'Source', 'Value': 'Salesforce'}
-        )
-    elif object_name == 'contact':
-        tag_set.append(
-            {'Key': 'Classification', 'Value': 'Private'},
-            {'Key': 'Source', 'Value': 'Salesforce'}
-        )
-    elif object_name == 'record_type':
-        tag_set.append(
-            {'Key': 'Classification', 'Value': 'Public'},
-            {'Key': 'Source', 'Value': 'Salesforce'}
-        )
+    except:
+        raise
     else:
-        raise ValueError('This object does not have any associated tags.')
+        return resources
+        
+def get_crawler_name(source_name):
+    crawlers = glue_client.list_crawlers()
+    for crawler_name in crawlers['CrawlerNames']:
+        if source_name in crawler_name:
+            return crawler_name
+    raise KeyError('Source does not have corresponding crawler. Ensure crawler is of the form ',
+                   '"[source_name]crawler", e.g., salesforcecrawler.')
+                   
+def try_get_crawler_name(source_name):
+    try:
+        crawler_name = get_crawler_name(source_name)
+    except (KeyError, Exception):
+        raise
+    else:
+        return crawler_name
+        
+def get_tags(source_name, object_name):
+    tag_set = []
+    path = '/' + source_name + '/' + object_name
+    tags = ssm_client.get_parameters_by_path(
+        Path=path,
+        Recursive=False
+    )
+    if len(tags['Parameters']) == 0:
+        raise ValueError('This object has no corresponding tags.')
+    else:
+        for key in tags['Parameters']:
+            tag_name = key['Name'].split('/')[-1]
+            tag_set.append({'Key': tag_name, 'Value': key['Value']})
+        return tag_set
+    
+def try_get_tags(source_name, object_name):
+    try:
+        tag_set = get_tags(source_name, object_name)
+    except:
+        raise
     return tag_set
-
-def try_get_tags(object_name):
-    try:
-        tags = get_tags(object_name)
-    except ValueError as e:
-        raise e
-    return tags
-
-def tag_objects(bucket_string, prefix, tag_set):
-    messages = []
-    for key in s3_client.list_objects(Bucket=bucket_string, Prefix=prefix)['Contents']:
-        messages.append(s3_client.put_object_tagging(Bucket=bucket_string,
-                                                     Key=key['Key'],
-                                                     Tagging={'TagSet': tag_set}))
-    return messages
-                                     
-def try_tag_objects(bucket, prefix, tag_set):
-    try:
-        messages = tag_objects(bucket, prefix, tag_set)
-    except Exception as e:
-        raise e
-    return messages
-                     
-def convert_to_data_frame(resources):
-    content_object = s3_resource.Object(resources['source_bucket_string'], resources['source_key'])
-    file_content = content_object.get()['Body'].read()
-    json_content = json.loads(file_content).decode('utf-8')
+    
+def convert_to_data_frame(source_bucket_string, source_key):
+    content_object = s3_resource.Object(source_bucket_string, source_key)
+    file_content = content_object.get()['Body'].read().decode('windows-1252').strip()
+    json_content = json.loads(file_content)
     data_frame = pandas.json_normalize(json_content)
+    data_frame['ingestion_timestamp'] = str(strftime("%Y-%m-%d %H:%M:%S", gmtime()))
     return data_frame
                      
 def try_convert_to_data_frame(resources):
     try:
         data_frame = convert_to_data_frame(resources)
-    except Exception as e:
-        raise e
+    except:
+        raise
+    else:
+        return data_frame
+     
+def convert_to_data_frame(source_bucket_string, source_key):
+    content_object = s3_resource.Object(source_bucket_string, source_key)
+    file_content = content_object.get()['Body'].read().decode('windows-1252').strip()
+    json_content = json.loads(file_content)
+    data_frame = pandas.json_normalize(json_content)
+    data_frame['ingestion_timestamp'] = str(strftime("%Y-%m-%d %H:%M:%S", gmtime()))
     return data_frame
+                     
+def try_convert_to_data_frame(source_bucket_string, source_key):
+    try:
+        data_frame = convert_to_data_frame(source_bucket_string, source_key)
+    except:
+        raise
+    else:
+        return data_frame
     
-def get_path(resources):
-    path = ('s3://' + resources['destination_bucket_string'] + '/' +
-                      resources['source_name'] + '/' +
-                      resources['source_object_name'] + '/')
+def get_path(source_name, object_name):
+    path = ('s3://' + destination_bucket_string + '/' +
+                      source_name + '/' +
+                      object_name + '/')
     return path
     
 def convert_to_parquet(data_frame, path, partition, database='', cpus=1):
@@ -122,21 +126,41 @@ def try_convert_to_parquet(data_frame, path, partition):
         compression_message = convert_to_parquet(data_frame=data_frame, 
                                                  path=path, 
                                                  partition=partition)
-    except Exception as e:
-        raise e
-    return compression_message
+    except:
+        raise
+    else:
+        return compression_message
+        
 
+def tag_objects(bucket_string, prefix, tag_set):
+    messages = []
+    for key in s3_client.list_objects(Bucket=bucket_string, Prefix=prefix)['Contents']:
+        messages.append(s3_client.put_object_tagging(Bucket=bucket_string,
+                                                     Key=key['Key'],
+                                                     Tagging={'TagSet': tag_set}))
+    return messages
+                                     
+def try_tag_objects(bucket, prefix, tag_set):
+    try:
+        messages = tag_objects(bucket, prefix, tag_set)
+    except:
+        raise
+    else:
+        return messages
+        
 def lambda_handler(event, context):
     resources = try_get_resources(event)
-    data_frame = try_convert_to_data_frame(resources)
-    path = get_path(resources)
-    tags = try_get_tags(resources['source_object_name'])
+    crawler_name = try_get_crawler_name(resources['source_name'])
+    tag_set = try_get_tags(resources['source_name'], resources['source_object_name'])
+    data_frame = try_convert_to_data_frame(resources['source_bucket_string'], resources['source_key'])
+    path = get_path(resources['source_name'], resources['source_object_name'])
     compression_message = try_convert_to_parquet(data_frame, path, resources['column_partition'])
-    tag_messages = try_tag_objects(resources['destination_bucket_string'], resources['prefix'], tags)
+    tag_messages = try_tag_objects(destination_bucket_string, resources['prefix'], tag_set)
     return {
         'statusCode': 200,
         'body': json.dumps({
-            'Compressed objects': compression_message,
-            'Tagged objects': tag_messages
+            #'Compressed objects': compression_message,
+            #'Objects tagged': len(tag_messages),
+            "Crawler": crawler_name
         })
     }
