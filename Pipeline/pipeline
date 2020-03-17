@@ -1,0 +1,15 @@
+steps:
+
+- task: AmazonWebServices.aws-vsts-tools.S3Upload.S3Upload@1
+
+  displayName: 'S3 Upload: ccod-lambda'
+
+  inputs:
+
+    awsCredentials: 'Dylan AWS'
+
+    regionName: 'us-east-2'
+
+    bucketName: 'ccod-lambda'
+
+    archiveType: 'zip'
