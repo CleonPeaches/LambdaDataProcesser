@@ -1,5 +1,5 @@
 #AYO PEEP DIS EDIT
-__name__ = 'lambda_function'
+__name__ = 'ccod-etl'
 
 import json
 import boto3
