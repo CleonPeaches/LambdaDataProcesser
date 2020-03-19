@@ -1,4 +1,4 @@
-#AYO PEEP DIS EDIT
+#TEST
 __name__ = 'lambda_function'
 
 import json
