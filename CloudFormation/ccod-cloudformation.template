@@ -10,7 +10,7 @@
           "Status": "Suspended"
         }
       },
-      "DeletionPolicy": "Retain"
+      "DeletionPolicy": "Delete"
     },
     "s3ccodstaging": {
       "Type": "AWS::S3::Bucket",
@@ -21,7 +21,7 @@
           "Status": "Enabled"
         }
       },
-      "DeletionPolicy": "Retain"
+      "DeletionPolicy": "Delete"
     }
   },
   "Description": "Demo CloudFormation template."
