@@ -1,0 +1,28 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "s3ccoddatalake": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "ccod-data-lake-2",
+        "AccessControl": "Private",
+        "VersioningConfiguration": {
+          "Status": "Suspended"
+        }
+      },
+      "DeletionPolicy": "Retain"
+    },
+    "s3ccodstaging": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "ccod-staging-2",
+        "AccessControl": "Private",
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        }
+      },
+      "DeletionPolicy": "Retain"
+    }
+  },
+  "Description": "Demo CloudFormation template."
+}
