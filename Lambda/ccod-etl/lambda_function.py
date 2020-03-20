@@ -8,7 +8,6 @@ import pandas
 import os
 from time import gmtime, strftime, sleep
 
-destination_bucket_string = os.environ['destination_bucket']
 s3_resource = boto3.resource('s3')
 s3_client = boto3.client('s3')
 glue_client = boto3.client('glue')
@@ -16,12 +15,13 @@ ssm_client = boto3.client('ssm')
 
 def get_resources(event):
     source_key = str(event['Records'][0]['s3']['object']['key'])
-    print(source_key)
+    dest_bucket_string = os.environ['destination_bucket']
     source_name = source_key.split('/')[-3]
     return {
         'source_bucket_string': str(event['Records'][0]['s3']['bucket']['name']),
         'source_key': source_key,
-        'destination_bucket': s3_resource.Bucket(destination_bucket_string),
+        'destination_bucket': s3_resource.Bucket(dest_bucket_string),
+        'dest_bucket_string': dest_bucket_string,
         'source_name': source_name,
         'source_object_name': source_key.split('/')[-2],
         'column_partition': ['created_date'],
@@ -35,23 +35,7 @@ def try_get_resources(event):
         raise
     else:
         return resources
-        
-def get_crawler_name(source_name):
-    crawlers = glue_client.list_crawlers()
-    for crawler_name in crawlers['CrawlerNames']:
-        if source_name in crawler_name:
-            return crawler_name
-    raise KeyError('Source does not have corresponding crawler. Ensure crawler is of the form ',
-                   '"[source_name]crawler", e.g., salesforcecrawler.')
-                   
-def try_get_crawler_name(source_name):
-    try:
-        crawler_name = get_crawler_name(source_name)
-    except (KeyError, Exception):
-        raise
-    else:
-        return crawler_name
-        
+  
 def get_tags(source_name, object_name):
     tag_set = []
     path = '/' + source_name + '/' + object_name
@@ -89,25 +73,9 @@ def try_convert_to_data_frame(resources):
         raise
     else:
         return data_frame
-     
-def convert_to_data_frame(source_bucket_string, source_key):
-    content_object = s3_resource.Object(source_bucket_string, source_key)
-    file_content = content_object.get()['Body'].read().decode('windows-1252').strip()
-    json_content = json.loads(file_content)
-    data_frame = pandas.json_normalize(json_content)
-    data_frame['ingestion_timestamp'] = str(strftime("%Y-%m-%d %H:%M:%S", gmtime()))
-    return data_frame
-                     
-def try_convert_to_data_frame(source_bucket_string, source_key):
-    try:
-        data_frame = convert_to_data_frame(source_bucket_string, source_key)
-    except:
-        raise
-    else:
-        return data_frame
     
-def get_path(source_name, object_name):
-    path = ('s3://' + destination_bucket_string + '/' +
+def get_path(source_name, object_name, dest_bucket_string):
+    path = ('s3://' + dest_bucket_string + '/' +
                       source_name + '/' +
                       object_name + '/')
     return path
@@ -151,17 +119,15 @@ def try_tag_objects(bucket, prefix, tag_set):
         
 def lambda_handler(event, context):
     resources = try_get_resources(event)
-    crawler_name = try_get_crawler_name(resources['source_name'])
     tag_set = try_get_tags(resources['source_name'], resources['source_object_name'])
     data_frame = try_convert_to_data_frame(resources['source_bucket_string'], resources['source_key'])
     path = get_path(resources['source_name'], resources['source_object_name'])
     compression_message = try_convert_to_parquet(data_frame, path, resources['column_partition'])
-    tag_messages = try_tag_objects(destination_bucket_string, resources['prefix'], tag_set)
+    tag_messages = try_tag_objects(resources['dest_bucket_string'], resources['prefix'], tag_set)
     return {
         'statusCode': 200,
         'body': json.dumps({
-            #'Compressed objects': compression_message,
-            #'Objects tagged': len(tag_messages),
-            "Crawler": crawler_name
+            'Objects compressed': len(compression_message),
+            'Objects tagged': len(tag_messages)
         })
     }
