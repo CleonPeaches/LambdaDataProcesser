@@ -1,4 +1,4 @@
-#Lambda edits at 11:45 AM
+#REE
 __name__ = 'lambda_function'
 
 import json
