@@ -1,4 +1,4 @@
-#TEST
+#Lambda edits at 11:45 AM
 __name__ = 'lambda_function'
 
 import json
