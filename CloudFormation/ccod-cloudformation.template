@@ -1,10 +1,10 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Resources": {
-    "testbucket1": {
+    "ccod-testbucket1-3-23": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": "testbucket1",
+        "BucketName": "ccod-testbucket1-3-23",
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Suspended"
@@ -12,10 +12,10 @@
       },
       "DeletionPolicy": "Retain"
     },
-    "testbucket2": {
+    "ccod-testbucket2-3-23": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": "testbucket2",
+        "BucketName": "ccod-testbucket2-3-23",
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Enabled"
