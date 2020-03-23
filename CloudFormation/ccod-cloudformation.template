@@ -8,6 +8,12 @@
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Suspended"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls" : "True",
+          "BlockPublicPolicy" : "True",
+          "IgnorePublicAcls" : "True",
+          "RestrictPublicBuckets" : "True"
         }
       },
       "DeletionPolicy": "Retain"
@@ -19,6 +25,12 @@
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Enabled"
+        },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls" : "True",
+          "BlockPublicPolicy" : "True",
+          "IgnorePublicAcls" : "True",
+          "RestrictPublicBuckets" : "True"
         }
       },
       "DeletionPolicy": "Retain"
