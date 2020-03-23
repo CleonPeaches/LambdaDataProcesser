@@ -4,7 +4,7 @@
     "s3ccoddatalake": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": "ccod-data-lake-2",
+        "BucketName": "testbucket-3-23-20-demo",
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Suspended"
@@ -15,7 +15,7 @@
     "s3ccodstaging": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": "ccod-staging-2",
+        "BucketName": "testbucket-3-23-20-demo",
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Enabled"
