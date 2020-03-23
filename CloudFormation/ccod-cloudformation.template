@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Resources": {
-    "s3ccoddatalake": {
+    "testbucket1": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
         "BucketName": "testbucket1",
@@ -12,7 +12,7 @@
       },
       "DeletionPolicy": "Retain"
     },
-    "s3ccodstaging": {
+    "testbucket2": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
         "BucketName": "testbucket2",
