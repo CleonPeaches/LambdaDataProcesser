@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Resources": {
-    "ccod-testbucket1-3-23": {
+    "ccodTestBucket01": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
         "BucketName": "ccod-testbucket1-3-23",
@@ -12,7 +12,7 @@
       },
       "DeletionPolicy": "Retain"
     },
-    "ccod-testbucket2-3-23": {
+    "ccodTestBucket02": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
         "BucketName": "ccod-testbucket2-3-23",
