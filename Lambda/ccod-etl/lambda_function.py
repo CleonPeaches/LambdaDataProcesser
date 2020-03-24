@@ -1,4 +1,4 @@
-#CCD-Bridge-Demo
+#Hello CCD!!!
 __name__ = 'lambda_function'
 
 import json
