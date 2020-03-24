@@ -4,7 +4,7 @@
     "ccodTestBucket01": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": "ccod-testbucket1-3-23",
+        "BucketName": "ccod-testbucket1-3-24",
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Suspended"
@@ -21,7 +21,7 @@
     "ccodTestBucket02": {
       "Type": "AWS::S3::Bucket",
       "Properties": {
-        "BucketName": "ccod-testbucket2-3-23",
+        "BucketName": "ccod-testbucket2-3-24",
         "AccessControl": "Private",
         "VersioningConfiguration": {
           "Status": "Enabled"

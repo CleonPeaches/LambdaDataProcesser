@@ -1,4 +1,4 @@
-#New commit!!
+#CCD-Bridge-Demo
 __name__ = 'lambda_function'
 
 import json
