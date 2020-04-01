@@ -1,4 +1,3 @@
-#Hello CCD!!!
 __name__ = 'lambda_function'
 
 import json
@@ -18,10 +17,11 @@ def get_resources(event):
     dest_bucket_string = os.environ['destination_bucket']
     source_name = source_key.split('/')[-3]
     return {
-        'source_bucket_string': str(event['Records'][0]['s3']['bucket']['name']),
+        'source_bucket_string': os.environ['source_bucket'],
         'source_key': source_key,
         'destination_bucket': s3_resource.Bucket(dest_bucket_string),
         'dest_bucket_string': dest_bucket_string,
+        'exile_bucket_string': os.environ['exile_bucket'],
         'source_name': source_name,
         'source_object_name': source_key.split('/')[-2],
         'column_partition': ['created_date'],
@@ -43,15 +43,24 @@ def get_tags(source_name, object_name):
             tag_set.append({'Key': tag_name, 'Value': key['Value']})
         return tag_set
     
-def try_get_tags(source_name, object_name):
+def try_get_tags(resources):
     try:
-        tag_set = get_tags(source_name, object_name)
+        tag_set = get_tags(resources['source_name'], resources['source_object_name'])
     except ValueError as e:
         if str(e) == 'This object has no corresponding tags.':
-            exile_object(source_name, object_name)
-    except:
-        raise
-    return tag_set
+            exile_object(resources)
+        raise e
+    else:
+        return tag_set
+
+def exile_object(resources):
+    copy_source = {
+        'Bucket': resources['source_bucket_string'],
+        'Key': resources['source_key']
+    }
+    exile_bucket = s3_resource(resources['exile_bucket-string'])
+    exile_bucket.copy(copy_source, resources['source_key'])
+
     
 def convert_to_data_frame(source_bucket_string, source_key):
     content_object = s3_resource.Object(source_bucket_string, source_key)
@@ -87,7 +96,7 @@ def tag_objects(bucket_string, prefix, tag_set):
         
 def lambda_handler(event, context):
     resources = get_resources(event)
-    tag_set = try_get_tags(resources['source_name'], resources['source_object_name'])
+    tag_set = try_get_tags(resources)
     data_frame = convert_to_data_frame(resources['source_bucket_string'], resources['source_key'])
     path = get_path(resources['source_name'], resources['source_object_name'], resources['dest_bucket_string'])
     compression_message = convert_to_parquet(data_frame, path, resources['column_partition'])
