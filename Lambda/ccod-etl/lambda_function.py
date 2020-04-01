@@ -27,14 +27,6 @@ def get_resources(event):
         'column_partition': ['created_date'],
         'prefix': source_key.split('/')[-3] + '/' + source_key.split('/')[-2] + '/'
     }
-    
-def try_get_resources(event):
-    try:
-        resources = get_resources(event)
-    except:
-        raise
-    else:
-        return resources
   
 def get_tags(source_name, object_name):
     tag_set = []
@@ -54,6 +46,9 @@ def get_tags(source_name, object_name):
 def try_get_tags(source_name, object_name):
     try:
         tag_set = get_tags(source_name, object_name)
+    except ValueError as e:
+        if str(e) == 'This object has no corresponding tags.':
+            exile_object(source_name, object_name)
     except:
         raise
     return tag_set
@@ -65,14 +60,6 @@ def convert_to_data_frame(source_bucket_string, source_key):
     data_frame = pandas.json_normalize(json_content)
     data_frame['ingestion_timestamp'] = str(strftime("%Y-%m-%d %H:%M:%S", gmtime()))
     return data_frame
-                     
-def try_convert_to_data_frame(resources):
-    try:
-        data_frame = convert_to_data_frame(resources)
-    except:
-        raise
-    else:
-        return data_frame
     
 def get_path(source_name, object_name, dest_bucket_string):
     path = ('s3://' + dest_bucket_string + '/' +
@@ -89,17 +76,6 @@ def convert_to_parquet(data_frame, path, partition, database='', cpus=1):
             procs_cpu_bound=cpus
         )
     return compression_message
-    
-def try_convert_to_parquet(data_frame, path, partition):
-    try:
-        compression_message = convert_to_parquet(data_frame=data_frame, 
-                                                 path=path, 
-                                                 partition=partition)
-    except:
-        raise
-    else:
-        return compression_message
-        
 
 def tag_objects(bucket_string, prefix, tag_set):
     messages = []
@@ -108,22 +84,14 @@ def tag_objects(bucket_string, prefix, tag_set):
                                                      Key=key['Key'],
                                                      Tagging={'TagSet': tag_set}))
     return messages
-                                     
-def try_tag_objects(bucket, prefix, tag_set):
-    try:
-        messages = tag_objects(bucket, prefix, tag_set)
-    except:
-        raise
-    else:
-        return messages
         
 def lambda_handler(event, context):
-    resources = try_get_resources(event)
+    resources = get_resources(event)
     tag_set = try_get_tags(resources['source_name'], resources['source_object_name'])
-    data_frame = try_convert_to_data_frame(resources['source_bucket_string'], resources['source_key'])
-    path = get_path(resources['source_name'], resources['source_object_name'])
-    compression_message = try_convert_to_parquet(data_frame, path, resources['column_partition'])
-    tag_messages = try_tag_objects(resources['dest_bucket_string'], resources['prefix'], tag_set)
+    data_frame = convert_to_data_frame(resources['source_bucket_string'], resources['source_key'])
+    path = get_path(resources['source_name'], resources['source_object_name'], resources['dest_bucket_string'])
+    compression_message = convert_to_parquet(data_frame, path, resources['column_partition'])
+    tag_messages = tag_objects(resources['dest_bucket_string'], resources['prefix'], tag_set)
     return {
         'statusCode': 200,
         'body': json.dumps({
