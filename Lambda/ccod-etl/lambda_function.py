@@ -47,7 +47,7 @@ def try_get_tags(resources):
         if str(e) == 'This object has no corresponding tags.':
             delete_message = exile_object(resources)
             print(delete_message)
-        raise e
+        raise type(e)(str(e) + ' Ensure tag is of the form "/[source]/[object]/[tag]".')
     else:
         return tag_set
 
@@ -62,7 +62,7 @@ def exile_object(resources):
     return delete_message
 
 def delete_object_from_staging(resources):
-    source_bucket = s3_resource.Bucket(resource['source_bucket'])
+    source_bucket = s3_resource.Bucket(resources['source_bucket'])
     delete_message = source_bucket.delete_objects(
         Delete={
             'Objects': [
