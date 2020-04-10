@@ -41,13 +41,21 @@
           "DatabaseName" : "ccod-salesforce",
           "Name" : "CFsalesforcecrawler",
           "Role" : "arn:aws:iam::946241882743:role/service-role/AWSGlueServiceRole-Admin",
-          "Schedule" : "cron(0 5,17 ? * MON-FRI *)",
+          "Schedule" : "cron(0 5/17 ? * MON-FRI *)",
           "SchemaChangePolicy" : { 
-            "AddOrUpdateBehavior": "UPDATE_IN_DATABASE",
+            "UpdateBehavior": "UPDATE_IN_DATABASE",
             "DeleteBehavior": "DEPRECATE_IN_DATABASE"
           },
-          "Targets" : { "S3Targets": ["s3://ccod-data-lake/salesforce/"] }
-        }
+          "Targets" : { 
+            "S3Targets": [
+              {
+                "Path": {
+                  "Ref": "s3://ccod-data-lake/salesforce/"
+                }
+              }
+            ]
+          }
+      }
     }
   },
   "Description": "Demo CloudFormation template."
