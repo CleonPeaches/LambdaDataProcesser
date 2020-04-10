@@ -41,7 +41,9 @@
           "DatabaseName" : "ccod-salesforce",
           "Name" : "CFsalesforcecrawler",
           "Role" : "arn:aws:iam::946241882743:role/service-role/AWSGlueServiceRole-Admin",
-          "Schedule" : "cron(0 5/17 ? * MON-FRI *)",
+          "Schedule" : {
+            "ScheduleExpression": "cron(0 5/17 ? * MON-FRI *)"
+          },
           "SchemaChangePolicy" : { 
             "UpdateBehavior": "UPDATE_IN_DATABASE",
             "DeleteBehavior": "DEPRECATE_IN_DATABASE"
