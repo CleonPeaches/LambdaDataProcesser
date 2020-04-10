@@ -49,9 +49,7 @@
           "Targets" : { 
             "S3Targets": [
               {
-                "Path": {
-                  "Ref": "ccod-data-lake"
-                }
+                "Path": "ccod-data-lake/salesforce"
               }
             ]
           }
