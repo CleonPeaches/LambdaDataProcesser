@@ -60,6 +60,7 @@
     "RecordTypeTable": {
       "Type" : "AWS::Glue::Table",
       "Properties" : {
+          "CatalogId": "",
           "DatabaseName" : "ccod-salesforce",
           "TableInput" : {
             "Name" : "record_type",
