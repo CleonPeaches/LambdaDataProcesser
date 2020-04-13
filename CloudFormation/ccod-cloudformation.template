@@ -42,7 +42,7 @@
           "Name" : "CFsalesforcecrawler",
           "Role" : "arn:aws:iam::946241882743:role/service-role/AWSGlueServiceRole-Admin",
           "Schedule" : {
-            "ScheduleExpression": "cron(0 5/17 ? * MON-FRI *)"
+            "ScheduleExpression": "cron(0 5,17 ? * MON-FRI *)"
           },
           "SchemaChangePolicy" : { 
             "UpdateBehavior": "UPDATE_IN_DATABASE",
@@ -56,6 +56,16 @@
             ]
           }
       }
+    },
+    "RecordTypeTable": {
+      "Type" : "AWS::Glue::Table",
+      "Properties" : {
+          "DatabaseName" : "ccod-salesforce",
+          "TableInput" : {
+            "Name" : "record_type",
+            "PartitionKeys" : []
+          }
+        }
     }
   },
   "Description": "Demo CloudFormation template."
