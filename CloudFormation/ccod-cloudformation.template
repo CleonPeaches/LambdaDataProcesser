@@ -57,17 +57,116 @@
           }
       }
     },
+    "LargeFileCrawler": {
+      "Type" : "AWS::Glue::Crawler",
+      "Properties" : {
+          "DatabaseName" : "ccod-salesforce",
+          "Name" : "CFlargefilecrawler",
+          "Role" : "arn:aws:iam::946241882743:role/service-role/AWSGlueServiceRole-Admin",
+          "Schedule" : {
+            "ScheduleExpression": "cron(0 5,17 ? * MON-FRI *)"
+          },
+          "SchemaChangePolicy" : { 
+            "UpdateBehavior": "UPDATE_IN_DATABASE",
+            "DeleteBehavior": "DEPRECATE_IN_DATABASE"
+          },
+          "Targets" : { 
+            "S3Targets": [
+              {
+                "Path": "ccod-data-lake/salesforce/contact"
+              }
+            ]
+          }
+      }
+    },
+    "MockDataCrawler": {
+      "Type" : "AWS::Glue::Crawler",
+      "Properties" : {
+          "DatabaseName" : "ccod-salesforce",
+          "Name" : "CFmockdatacrawler",
+          "Role" : "arn:aws:iam::946241882743:role/service-role/AWSGlueServiceRole-Admin",
+          "Schedule" : {
+            "ScheduleExpression": "cron(0 5,17 ? * MON-FRI *)"
+          },
+          "SchemaChangePolicy" : { 
+            "UpdateBehavior": "UPDATE_IN_DATABASE",
+            "DeleteBehavior": "DEPRECATE_IN_DATABASE"
+          },
+          "Targets" : { 
+            "S3Targets": [
+              {
+                "Path": "ccod-data-lake/salesforce/mock"
+              }
+            ]
+          }
+      }
+    },
     "RecordTypeTable": {
       "Type" : "AWS::Glue::Table",
       "Properties" : {
           "CatalogId": "946241882743",
           "DatabaseName" : "ccod-salesforce",
           "TableInput" : {
-            "Name" : "record_type",
+            "Name" : "cf_record_type",
+            "PartitionKeys" : []
+          }
+        }
+    },
+    "ContactTable": {
+      "Type" : "AWS::Glue::Table",
+      "Properties" : {
+          "CatalogId": "946241882743",
+          "DatabaseName" : "ccod-salesforce",
+          "TableInput" : {
+            "Name" : "cf_contact",
+            "PartitionKeys" : []
+          }
+        }
+    },
+    "CommunityTable": {
+      "Type" : "AWS::Glue::Table",
+      "Properties" : {
+          "CatalogId": "946241882743",
+          "DatabaseName" : "ccod-salesforce",
+          "TableInput" : {
+            "Name" : "cf_community",
+            "PartitionKeys" : []
+          }
+        }
+    },
+    "CasesTable": {
+      "Type" : "AWS::Glue::Table",
+      "Properties" : {
+          "CatalogId": "946241882743",
+          "DatabaseName" : "ccod-salesforce",
+          "TableInput" : {
+            "Name" : "cf_cases",
+            "PartitionKeys" : []
+          }
+        }
+    },
+    "CaseStatusTable": {
+      "Type" : "AWS::Glue::Table",
+      "Properties" : {
+          "CatalogId": "946241882743",
+          "DatabaseName" : "ccod-salesforce",
+          "TableInput" : {
+            "Name" : "cf_case_status",
+            "PartitionKeys" : []
+          }
+        }
+    },
+    "BusinessProcessTable": {
+      "Type" : "AWS::Glue::Table",
+      "Properties" : {
+          "CatalogId": "946241882743",
+          "DatabaseName" : "ccod-salesforce",
+          "TableInput" : {
+            "Name" : "cf_buiness_process",
             "PartitionKeys" : []
           }
         }
     }
   },
-  "Description": "Demo CloudFormation template."
+  "Description": "CCD Data Hub CloudFormation script."
 }
