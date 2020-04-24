@@ -7,23 +7,27 @@ import pandas
 import os
 from time import gmtime, strftime, sleep
 
-s3_resource = boto3.resource('s3')
-s3_client = boto3.client('s3')
-ssm_client = boto3.client('ssm')
+def get_clients(region_name=None):
+    region_name = region_name or os.environ["region_name"]
+    s3_resource = boto3.resource('s3', region=region_name)
+    s3_client = boto3.client('s3', region=region_name)
+    ssm_client = boto3.client('ssm', region=region_name)
+    return s3_resource, s3_client, ssm_client
 
-def get_resources(event):
+def get_resources(event, source_bucket=None, dest_bucket=None, exile_bucket=None):
     source_key = str(event['Records'][0]['s3']['object']['key'])
     source_name = source_key.split('/')[-3]
     return {
-        'source_bucket': os.environ['source_bucket'],
+        'source_bucket': source_bucket or os.environ['source_bucket'],
         'source_key': source_key,
-        'destination_bucket': os.environ['destination_bucket'],
-        'exile_bucket': os.environ['exile_bucket'],
+        'destination_bucket': dest_bucket or os.environ['destination_bucket'],
+        'exile_bucket': exile_bucket or os.environ['exile_bucket'],
         'source_name': source_name,
         'source_object_name': source_key.split('/')[-2],
         'column_partition': ['created_date'],
         'prefix': source_key.split('/')[-3] + '/' + source_key.split('/')[-2] + '/'
     }
+        
 
 def get_tags(source_name, object_name):
     tag_set = []
@@ -106,7 +110,8 @@ def tag_objects(bucket_string, prefix, tag_set):
                                                      Tagging={'TagSet': tag_set}))
     return messages
         
-def lambda_handler(event, context):
+def main(event, context):
+    s3_resource, s3_client, ssm_client = get_clients()
     resources = get_resources(event)
     tag_set = try_get_tags(resources)
     data_frame = convert_to_data_frame(resources['source_bucket'], resources['source_key'])

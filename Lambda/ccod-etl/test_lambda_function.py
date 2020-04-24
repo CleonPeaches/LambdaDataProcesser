@@ -6,24 +6,27 @@ https://github.com/vincentclaes/serverless_data_pipeline_example/blob/master/ser
 
 import boto3
 import unittest
+import os
 from moto import mock_s3
+
+from lambda_function import get_resources
 
 @mock_s3
 class MockS3(unittest.TestCase):
-    STAGING_BUCKET = 'ccod-staging'
-    DATA_LAKE_BUCKET = 'ccod-data-lake'
-    EXILE_BUCKET = 'ccod-exile'
-    REGION_NAME = 'us-east-2'
+    STAGING_BUCKET = 'test_bucket_1'
+    DESTINATION_BUCKET = 'test_bucket_2'
+    EXILE_BUCKET = 'test_bucket_3'
+    REGION = 'something'
 
     def setUp(self):
-        conn = boto3.resource(bucket_name='s3', region_name=self.REGION_NAME)
+        conn = boto3.resource(bucket_name='s3', region_name=self.REGION)
         conn.create_bucket(Bucket=self.STAGING_BUCKET)
-        conn.create_bucket(Bucket=self.DATA_LAKE_BUCKET)
+        conn.create_bucket(Bucket=self.DESTINATION_BUCKET)
         conn.create_bucket(Bucket=self.EXILE_BUCKET)
 
     def tearDown(self):
         self.remove_bucket(self.STAGING_BUCKET)
-        self.remove_bucket(self.DATA_LAKE_BUCKET)
+        self.remove_bucket(self.DESTINATION_BUCKET)
         self.remove_bucket(self.EXILE_BUCKET)
 
     @staticmethod
@@ -33,13 +36,13 @@ class MockS3(unittest.TestCase):
         s3_bucket.delete()
 
     @staticmethod
-    def get_s3_event(bucket, key):
+    def get_s3_event(bucket, key, region):
         return {
             "Records": [
                 {
                 "eventVersion": "2.1",
                 "eventSource": "aws:s3",
-                "awsRegion": "us-east-2",
+                "awsRegion": region,
                 "eventTime": "2020-04-24T19:07:28.579Z",
                 "eventName": "ObjectCreated:Put",
                 "userIdentity": {
