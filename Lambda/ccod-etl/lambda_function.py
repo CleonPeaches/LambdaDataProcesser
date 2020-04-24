@@ -24,7 +24,7 @@ def get_resources(event):
         'column_partition': ['created_date'],
         'prefix': source_key.split('/')[-3] + '/' + source_key.split('/')[-2] + '/'
     }
-  
+
 def get_tags(source_name, object_name):
     tag_set = []
     path = '/' + source_name + '/' + object_name
