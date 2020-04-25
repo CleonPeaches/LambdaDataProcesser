@@ -16,10 +16,10 @@ class MockS3(unittest.TestCase):
     STAGING_BUCKET = 'test_bucket_1'
     DESTINATION_BUCKET = 'test_bucket_2'
     EXILE_BUCKET = 'test_bucket_3'
-    REGION = 'something'
+    REGION = 'us-east-123'
 
     def setUp(self):
-        conn = boto3.resource(bucket_name='s3', region_name=self.REGION)
+        conn = boto3.resource('s3', region_name=self.REGION)
         conn.create_bucket(Bucket=self.STAGING_BUCKET)
         conn.create_bucket(Bucket=self.DESTINATION_BUCKET)
         conn.create_bucket(Bucket=self.EXILE_BUCKET)
@@ -36,13 +36,13 @@ class MockS3(unittest.TestCase):
         s3_bucket.delete()
 
     @staticmethod
-    def get_s3_event(bucket, key, region):
+    def get_s3_event(bucket, key):
         return {
             "Records": [
                 {
                 "eventVersion": "2.1",
                 "eventSource": "aws:s3",
-                "awsRegion": region,
+                "awsRegion": "us-east-123",
                 "eventTime": "2020-04-24T19:07:28.579Z",
                 "eventName": "ObjectCreated:Put",
                 "userIdentity": {
@@ -76,6 +76,29 @@ class MockS3(unittest.TestCase):
             }
         ]
     }
+
+    def test_get_resources(self):
+        source_key = 'salesforce/record_type/test.json'
+        event = MockS3.get_s3_event(self.STAGING_BUCKET, source_key)
+
+        resources = get_resources(
+            event=event, 
+            source_bucket=self.STAGING_BUCKET, 
+            dest_bucket=self.DESTINATION_BUCKET, 
+            exile_bucket=self.EXILE_BUCKET)
+        
+        assert resources['source_bucket'] == self.STAGING_BUCKET
+        assert resources['source_key'] == source_key
+        assert resources['destination_bucket'] == self.DESTINATION_BUCKET
+        assert resources['exile_bucket'] == self.EXILE_BUCKET
+        assert resources['source_name'] == 'salesforce'
+        assert resources['source_object_name'] == 'record_type'
+        assert resources['column_partition'] == ['created_date']
+        assert resources['prefix'] == 'salesforce/record_type/'
+
+    def test_get_resources_raise_on_bad_key():
+        pass
+
 
 if __name__ == '__main__':
     unittest.main()

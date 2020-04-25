@@ -7,6 +7,10 @@ import pandas
 import os
 from time import gmtime, strftime, sleep
 
+s3_resource = None
+s3_client = None
+ssm_client = None
+
 def get_clients(region_name=None):
     region_name = region_name or os.environ["region_name"]
     s3_resource = boto3.resource('s3', region=region_name)
