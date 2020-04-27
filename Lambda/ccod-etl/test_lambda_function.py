@@ -149,6 +149,16 @@ class TestLambdaFunction(unittest.TestCase):
         self.assertEqual(key, tags[0]['Key'])
         self.assertEqual(parm_value, tags[0]['Value'])
 
+    @mock_ssm
+    def test_get_tags_raises_on_no_tags(self):
+        s3_resource, s3_client, ssm_client = get_clients(region_name='us-east-2')
+
+        with self.assertRaises(ValueError) as context:
+            get_tags('salesforce', 'record_type', ssm_client)
+        
+        self.assertTrue('This object has no corresponding tags in AWS Parameter Store.'
+                        in str(context.exception))
+
 
 
         
