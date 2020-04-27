@@ -13,14 +13,29 @@ ssm_client = None
 
 def get_clients(region_name=None):
     region_name = region_name or os.environ["region_name"]
-    s3_resource = boto3.resource('s3', region=region_name)
-    s3_client = boto3.client('s3', region=region_name)
-    ssm_client = boto3.client('ssm', region=region_name)
+    s3_resource = boto3.resource('s3', region_name=region_name)
+    s3_client = boto3.client('s3', region_name=region_name)
+    ssm_client = boto3.client('ssm', region_name=region_name)
     return s3_resource, s3_client, ssm_client
 
+def parse_key(event):
+    try:
+        source_key = str(event['Records'][0]['s3']['object']['key'])
+    except KeyError as e:
+        raise type(e)(
+            str(e) + 'Malformed JSON request. Ensure key is located in '+
+            'event["Records"][0]["s3"]["object"]["key"].')
+    try:
+        source_name = source_key.split('/')[-3]
+    except IndexError as e:
+        raise type(e)(
+            str(e) + 'Object landed in incorrect location. Ensure ' +
+            'object is in "[bucket]/[source_name]/[object_name]".')
+    return source_key, source_name
+
 def get_resources(event, source_bucket=None, dest_bucket=None, exile_bucket=None):
-    source_key = str(event['Records'][0]['s3']['object']['key'])
-    source_name = source_key.split('/')[-3]
+    source_key, source_name = parse_key(event)
+    
     return {
         'source_bucket': source_bucket or os.environ['source_bucket'],
         'source_key': source_key,
@@ -32,16 +47,13 @@ def get_resources(event, source_bucket=None, dest_bucket=None, exile_bucket=None
         'prefix': source_key.split('/')[-3] + '/' + source_key.split('/')[-2] + '/'
     }
         
-
-def get_tags(source_name, object_name):
+def get_tags(source_name, object_name, ssm=None):
+    ssm = ssm or ssm_client
     tag_set = []
     path = '/' + source_name + '/' + object_name
-    tags = ssm_client.get_parameters_by_path(
-        Path=path,
-        Recursive=False
-    )
+    tags = ssm.get_parameters_by_path(Path=path,Recursive=False)
     if len(tags['Parameters']) == 0:
-        raise ValueError('This object has no corresponding tags.')
+        raise ValueError('This object has no corresponding tags in AWS Parameter Store.')
     else:
         for key in tags['Parameters']:
             tag_name = key['Name'].split('/')[-1]

@@ -7,18 +7,24 @@ https://github.com/vincentclaes/serverless_data_pipeline_example/blob/master/ser
 import boto3
 import unittest
 import os
-from moto import mock_s3
+from pprint import pprint
+from moto import mock_s3, mock_ssm
 
-from lambda_function import get_resources
+from lambda_function import get_clients, get_resources, get_tags
 
 @mock_s3
-class MockS3(unittest.TestCase):
+@mock_ssm
+class TestLambdaFunction(unittest.TestCase):
     STAGING_BUCKET = 'test_bucket_1'
     DESTINATION_BUCKET = 'test_bucket_2'
     EXILE_BUCKET = 'test_bucket_3'
     REGION = 'us-east-123'
+    S3_RESOURCE = None
+    S3_CLIENT = None
+    SSM_CLIENT = None
 
     def setUp(self):
+        S3_RESOURCE, S3_CLIENT, SSM_CLIENT = get_clients(region_name='us-east-123')
         conn = boto3.resource('s3', region_name=self.REGION)
         conn.create_bucket(Bucket=self.STAGING_BUCKET)
         conn.create_bucket(Bucket=self.DESTINATION_BUCKET)
@@ -79,7 +85,7 @@ class MockS3(unittest.TestCase):
 
     def test_get_resources(self):
         source_key = 'salesforce/record_type/test.json'
-        event = MockS3.get_s3_event(self.STAGING_BUCKET, source_key)
+        event = TestLambdaFunction.get_s3_event(self.STAGING_BUCKET, source_key)
 
         resources = get_resources(
             event=event, 
@@ -87,17 +93,67 @@ class MockS3(unittest.TestCase):
             dest_bucket=self.DESTINATION_BUCKET, 
             exile_bucket=self.EXILE_BUCKET)
         
-        assert resources['source_bucket'] == self.STAGING_BUCKET
-        assert resources['source_key'] == source_key
-        assert resources['destination_bucket'] == self.DESTINATION_BUCKET
-        assert resources['exile_bucket'] == self.EXILE_BUCKET
-        assert resources['source_name'] == 'salesforce'
-        assert resources['source_object_name'] == 'record_type'
-        assert resources['column_partition'] == ['created_date']
-        assert resources['prefix'] == 'salesforce/record_type/'
+        self.assertEqual(resources['source_bucket'], self.STAGING_BUCKET) 
+        self.assertEqual(resources['source_key'], source_key)
+        self.assertEqual(resources['destination_bucket'], self.DESTINATION_BUCKET)
+        self.assertEqual(resources['exile_bucket'], self.EXILE_BUCKET)
+        self.assertEqual(resources['source_name'], 'salesforce')
+        self.assertEqual(resources['source_object_name'], 'record_type')
+        self.assertEqual(resources['column_partition'], ['created_date'])
+        self.assertEqual(resources['prefix'], 'salesforce/record_type/')
 
-    def test_get_resources_raise_on_bad_key():
-        pass
+    def test_get_resources_raise_on_missing_key(self):
+        source_key = 'salesforce/record_type/test.json'
+        event = TestLambdaFunction.get_s3_event(self.STAGING_BUCKET, source_key)
+        event['Records'][0]['s3']['object'].pop('key')
+
+        with self.assertRaises(KeyError) as context:
+            get_resources(
+                event=event, 
+                source_bucket=self.STAGING_BUCKET, 
+                dest_bucket=self.DESTINATION_BUCKET, 
+                exile_bucket=self.EXILE_BUCKET)
+        
+        self.assertTrue('Malformed JSON request. Ensure key is located in '+
+            'event["Records"][0]["s3"]["object"]["key"].' in str(context.exception))
+
+    def test_get_resources_raise_on_bad_key(self):
+        source_key = 'salesforce/test.json'
+        event = TestLambdaFunction.get_s3_event(self.STAGING_BUCKET, source_key)
+
+        with self.assertRaises(IndexError) as context:
+            get_resources(
+                event=event, 
+                source_bucket=self.STAGING_BUCKET, 
+                dest_bucket=self.DESTINATION_BUCKET, 
+                exile_bucket=self.EXILE_BUCKET)
+        
+        self.assertTrue('Object landed in incorrect location. Ensure object is in ' +
+            '"[bucket]/[source_name]/[object_name]".' in str(context.exception))
+
+    @mock_ssm
+    def test_get_tags(self):
+        parm_name = '/salesforce/record_type/classification'
+        parm_value = 'private'
+        key = 'classification'
+        s3_resource, s3_client, ssm_client = get_clients(region_name='us-east-2')
+        ssm_client.put_parameter(
+            Name=parm_name, 
+            Description='Description',
+            Value=parm_value,
+            Type='Type'
+        )
+
+        tags = get_tags('salesforce', 'record_type', ssm_client)
+
+        self.assertEqual(key, tags[0]['Key'])
+        self.assertEqual(parm_value, tags[0]['Value'])
+
+
+
+        
+        
+
 
 
 if __name__ == '__main__':
