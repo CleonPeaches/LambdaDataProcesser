@@ -60,18 +60,18 @@ def get_tags(source_name, object_name, ssm=None):
             tag_set.append({'Key': tag_name, 'Value': key['Value']})
         return tag_set
     
-def try_get_tags(resources):
+def try_get_tags(resources, ssm, s3_resource):
     try:
-        tag_set = get_tags(resources['source_name'], resources['source_object_name'])
+        tag_set = get_tags(resources['source_name'], resources['source_object_name'], ssm)
     except ValueError as e:
-        if str(e) == 'This object has no corresponding tags.':
-            delete_message = exile_object(resources)
+        if str(e) == 'This object has no corresponding tags in AWS Parameter Store.':
+            delete_message = exile_object(resources, s3_resource)
             print(delete_message)
         raise type(e)(str(e) + ' Ensure tag is of the form "/[source]/[object]/[tag]".')
     else:
         return tag_set
 
-def exile_object(resources):
+def exile_object(resources, s3_resource):
     copy_source = {
         'Bucket': resources['source_bucket'],
         'Key': resources['source_key']
@@ -129,7 +129,7 @@ def tag_objects(bucket_string, prefix, tag_set):
 def main(event, context):
     s3_resource, s3_client, ssm_client = get_clients()
     resources = get_resources(event)
-    tag_set = try_get_tags(resources)
+    tag_set = try_get_tags(resources, ssm_client, s3_resource)
     data_frame = convert_to_data_frame(resources['source_bucket'], resources['source_key'])
     path = get_path(resources['source_name'], resources['source_object_name'], resources['destination_bucket'])
     compression_message = convert_to_parquet(data_frame, path, resources['column_partition'])

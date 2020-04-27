@@ -10,7 +10,7 @@ import os
 from pprint import pprint
 from moto import mock_s3, mock_ssm
 
-from lambda_function import get_clients, get_resources, get_tags
+from lambda_function import get_clients, get_resources, try_get_tags
 
 @mock_s3
 @mock_ssm
@@ -18,13 +18,15 @@ class TestLambdaFunction(unittest.TestCase):
     STAGING_BUCKET = 'test_bucket_1'
     DESTINATION_BUCKET = 'test_bucket_2'
     EXILE_BUCKET = 'test_bucket_3'
-    REGION = 'us-east-123'
+    REGION = 'us-east-2'
     S3_RESOURCE = None
     S3_CLIENT = None
     SSM_CLIENT = None
 
+    @mock_ssm
     def setUp(self):
-        S3_RESOURCE, S3_CLIENT, SSM_CLIENT = get_clients(region_name='us-east-123')
+        self.s3_resource, self.s3_client, self.ssm_client = \
+            get_clients(region_name=self.REGION)
         conn = boto3.resource('s3', region_name=self.REGION)
         conn.create_bucket(Bucket=self.STAGING_BUCKET)
         conn.create_bucket(Bucket=self.DESTINATION_BUCKET)
@@ -132,29 +134,42 @@ class TestLambdaFunction(unittest.TestCase):
             '"[bucket]/[source_name]/[object_name]".' in str(context.exception))
 
     @mock_ssm
-    def test_get_tags(self):
+    def test_try_get_tags(self):
         parm_name = '/salesforce/record_type/classification'
         parm_value = 'private'
         key = 'classification'
-        s3_resource, s3_client, ssm_client = get_clients(region_name='us-east-2')
-        ssm_client.put_parameter(
+        self.ssm_client.put_parameter(
             Name=parm_name, 
             Description='Description',
             Value=parm_value,
             Type='Type'
         )
 
-        tags = get_tags('salesforce', 'record_type', ssm_client)
+        source_key = 'salesforce/record_type/test.json'
+        event = TestLambdaFunction.get_s3_event(self.STAGING_BUCKET, source_key)
+        resources = get_resources(
+            event=event, 
+            source_bucket=self.STAGING_BUCKET, 
+            dest_bucket=self.DESTINATION_BUCKET, 
+            exile_bucket=self.EXILE_BUCKET)
+
+        tags = try_get_tags(resources, self.ssm_client, self.s3_resource)
 
         self.assertEqual(key, tags[0]['Key'])
         self.assertEqual(parm_value, tags[0]['Value'])
 
     @mock_ssm
     def test_get_tags_raises_on_no_tags(self):
-        s3_resource, s3_client, ssm_client = get_clients(region_name='us-east-2')
+        source_key = 'salesforce/record_type/test.json'
+        event = TestLambdaFunction.get_s3_event(self.STAGING_BUCKET, source_key)
+        resources = get_resources(
+            event=event, 
+            source_bucket=self.STAGING_BUCKET, 
+            dest_bucket=self.DESTINATION_BUCKET, 
+            exile_bucket=self.EXILE_BUCKET)
 
         with self.assertRaises(ValueError) as context:
-            get_tags('salesforce', 'record_type', ssm_client)
+            try_get_tags(resources, self.ssm_client, self.s3_resource)
         
         self.assertTrue('This object has no corresponding tags in AWS Parameter Store.'
                         in str(context.exception))
