@@ -7,33 +7,53 @@ import pandas
 import os
 from time import gmtime, strftime, sleep
 
-s3_resource = boto3.resource('s3')
-s3_client = boto3.client('s3')
-ssm_client = boto3.client('ssm')
+s3_resource = None
+s3_client = None
+ssm_client = None
 
-def get_resources(event):
-    source_key = str(event['Records'][0]['s3']['object']['key'])
-    source_name = source_key.split('/')[-3]
+def get_clients(region_name=None):
+    region_name = region_name or os.environ["region_name"]
+    s3_resource = boto3.resource('s3', region_name=region_name)
+    s3_client = boto3.client('s3', region_name=region_name)
+    ssm_client = boto3.client('ssm', region_name=region_name)
+    return s3_resource, s3_client, ssm_client
+
+def parse_key(event):
+    try:
+        source_key = str(event['Records'][0]['s3']['object']['key'])
+    except KeyError as e:
+        raise type(e)(
+            str(e) + 'Malformed JSON request. Ensure key is located in '+
+            'event["Records"][0]["s3"]["object"]["key"].')
+    try:
+        source_name = source_key.split('/')[-3]
+    except IndexError as e:
+        raise type(e)(
+            str(e) + 'Object landed in incorrect location. Ensure ' +
+            'object is in "[bucket]/[source_name]/[object_name]".')
+    return source_key, source_name
+
+def get_resources(event, source_bucket=None, dest_bucket=None, exile_bucket=None):
+    source_key, source_name = parse_key(event)
+    
     return {
-        'source_bucket': os.environ['source_bucket'],
+        'source_bucket': source_bucket or os.environ['source_bucket'],
         'source_key': source_key,
-        'destination_bucket': os.environ['destination_bucket'],
-        'exile_bucket': os.environ['exile_bucket'],
+        'destination_bucket': dest_bucket or os.environ['destination_bucket'],
+        'exile_bucket': exile_bucket or os.environ['exile_bucket'],
         'source_name': source_name,
         'source_object_name': source_key.split('/')[-2],
         'column_partition': ['created_date'],
         'prefix': source_key.split('/')[-3] + '/' + source_key.split('/')[-2] + '/'
     }
-  
-def get_tags(source_name, object_name):
+        
+def get_tags(source_name, object_name, ssm=None):
+    ssm = ssm or ssm_client
     tag_set = []
     path = '/' + source_name + '/' + object_name
-    tags = ssm_client.get_parameters_by_path(
-        Path=path,
-        Recursive=False
-    )
+    tags = ssm.get_parameters_by_path(Path=path,Recursive=False)
     if len(tags['Parameters']) == 0:
-        raise ValueError('This object has no corresponding tags.')
+        raise ValueError('This object has no corresponding tags in AWS Parameter Store.')
     else:
         for key in tags['Parameters']:
             tag_name = key['Name'].split('/')[-1]
@@ -106,7 +126,8 @@ def tag_objects(bucket_string, prefix, tag_set):
                                                      Tagging={'TagSet': tag_set}))
     return messages
         
-def lambda_handler(event, context):
+def main(event, context):
+    s3_resource, s3_client, ssm_client = get_clients()
     resources = get_resources(event)
     tag_set = try_get_tags(resources)
     data_frame = convert_to_data_frame(resources['source_bucket'], resources['source_key'])
